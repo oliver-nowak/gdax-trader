@@ -10,6 +10,8 @@ import period
 import trade
 import indicators
 import Queue
+import matplotlib.pyplot as plt
+import matplotlib.finance
 
 websocket_queue = Queue.Queue()
 
@@ -46,6 +48,10 @@ def process_heartbeat(msg, cur_period, prev_minute):
         if prev_minute and isotime.minute != prev_minute:
             cur_period.close_candlestick()
             cur_period.new_candlestick(isotime)
+            if len(cur_period.candlesticks) > 0:
+                fig, ax = plt.subplots()
+                matplotlib.finance.candlestick2_ohlc(ax, cur_period.candlesticks[:,1], cur_period.candlesticks[:,2], cur_period.candlesticks[:,3], cur_period.candlesticks[:,4],width=0.6)
+                plt.show()
         return isotime.minute
 
 
