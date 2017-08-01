@@ -46,7 +46,7 @@ class IndicatorSubsystem:
                            self.current_indicators[cur_period.name]['bband_upper'], self.current_indicators[cur_period.name]['bband_lower']))
 
     def calculate_adx(self, period_name, highs, lows, closes):
-        adx = talib.ADX(highs, lows, closes, timeperiod=14)
+        adx = talib.ADX(highs, lows, closes, timeperiod=7)
 
         self.current_indicators[period_name]['adx'] = adx[-1]
 
