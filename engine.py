@@ -184,10 +184,28 @@ class TradeEngine():
 
     def determine_trades(self, indicators):
         self.update_amounts()
-        if Decimal(indicators['5']['obv']) > Decimal(indicators['5']['obv_ema']):
-            self.sell_flag = False
-            # buy btc
-            self.buy_flag = True
+        if Decimal(indicators['5']['adx']) > Decimal('25.0'):
+            # Price is trending
+            if Decimal(indicators['5']['obv']) > Decimal(indicators['5']['obv_ema']):
+                # buy btc
+                self.sell_flag = False
+                self.buy_flag = True
+            else:  # OBV < OBV_EMA
+                # sell btc
+                self.buy_flag = False
+                self.sell_flag = True
+        else:
+            # Price is ranging
+            if Decimal(indicators['5']['last_price']) <= Decimal(indicators['5']['bband_lower']) + Decimal('5.0'):
+                # At bottom - buy
+                self.sell_flag = False
+                self.buy_flag = True
+            elif Decimal(indicators['5']['last_price']) >= Decimal(indicators['5']['bband_upper']) - Decimal('5.0'):
+                # At top - sell
+                self.buy_flag = False
+                self.sell_flag = True
+
+        if self.buy_flag:
             if self.order_thread.is_alive():
                 if self.order_thread.name == 'sell_thread':
                     # Wait for thread to close
@@ -198,10 +216,7 @@ class TradeEngine():
             else:
                 self.order_thread = threading.Thread(target=self.buy, name='buy_thread')
                 self.order_thread.start()
-        else:  # OBV < OBV_EMA
-            self.buy_flag = False
-            # sell btc
-            self.sell_flag = True
+        elif self.sell_flag:
             if self.order_thread.is_alive():
                 if self.order_thread.name == 'buy_thread':
                     # Wait for thread to close

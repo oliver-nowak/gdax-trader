@@ -19,6 +19,10 @@ class IndicatorSubsystem:
     def recalculate_indicators(self, cur_period):
         total_periods = len(cur_period.candlesticks)
         if total_periods > 0:
+            highs = np.append(cur_period.get_highs(),
+                                       cur_period.cur_candlestick.high)
+            lows = np.append(cur_period.get_lows(),
+                                       cur_period.cur_candlestick.low)
             closing_prices = np.append(cur_period.get_closing_prices(),
                                        cur_period.cur_candlestick.close)
             volumes = np.append(cur_period.get_volumes(),
@@ -28,13 +32,29 @@ class IndicatorSubsystem:
             self.calculate_vol_macd(cur_period.name, volumes)
             self.calculate_avg_volume(cur_period.name, volumes)
             self.calculate_obv(cur_period.name, closing_prices, volumes)
+            self.calculate_bbands(cur_period.name, closing_prices)
+            self.calculate_adx(cur_period.name, highs, lows, closing_prices)
+
+            self.current_indicators[cur_period.name]['last_price'] = cur_period.cur_candlestick.close
 
             self.current_indicators[cur_period.name]['total_periods'] = total_periods
 
-        self.logger.debug("[INDICATORS %s] Periods: %d MACD Hist: %f OBV: %f OBV EMA: %f" %
+        self.logger.debug("[INDICATORS %s] Periods: %d MACD Hist: %f OBV: %f OBV EMA: %f ADX: %f BBAND_UPPER: %f BBAND_LOWER %f" %
                           (cur_period.name, self.current_indicators[cur_period.name]['total_periods'],
                            self.current_indicators[cur_period.name]['macd_hist'], self.current_indicators[cur_period.name]['obv'],
-                           self.current_indicators[cur_period.name]['obv_ema']))
+                           self.current_indicators[cur_period.name]['obv_ema'], self.current_indicators[cur_period.name]['adx'],
+                           self.current_indicators[cur_period.name]['bband_upper'], self.current_indicators[cur_period.name]['bband_lower']))
+
+    def calculate_adx(self, period_name, highs, lows, closes):
+        adx = talib.ADX(highs, lows, closes, timeperiod=14)
+
+        self.current_indicators[period_name]['adx'] = adx[-1]
+
+    def calculate_bbands(self, period_name, close):
+        upperband, middleband, lowerband = talib.BBANDS(close, timeperiod=20, nbdevup=2, nbdevdn=2, matype=0)
+
+        self.current_indicators[period_name]['bband_upper'] = upperband[-1]
+        self.current_indicators[period_name]['bband_lower'] = lowerband[-1]
 
     def calculate_macd(self, period_name, closing_prices):
         macd, macd_sig, macd_hist = talib.MACD(closing_prices, fastperiod=10,
