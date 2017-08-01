@@ -201,7 +201,8 @@ class TradeEngine():
                 # At bottom - buy
                 self.sell_flag = False
                 self.buy_flag = True
-            elif Decimal(indicators['5']['last_price']) >= Decimal(indicators['5']['bband_upper']) - Decimal('5.0'):
+            elif Decimal(indicators['5']['last_price']) >= Decimal(indicators['5']['bband_upper']) - Decimal('5.0') \
+                 or Decimal(indicators['5']['last_price']) < Decimal(indicators['5']['bband_lower']) - Decimal('5.0'):
                 # At top - sell
                 self.buy_flag = False
                 self.sell_flag = True
