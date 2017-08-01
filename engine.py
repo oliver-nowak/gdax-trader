@@ -184,7 +184,7 @@ class TradeEngine():
 
     def determine_trades(self, indicators):
         self.update_amounts()
-        if Decimal(indicators['5']['adx']) > Decimal('25.0'):
+        if Decimal(indicators['5']['adx']) > Decimal('20.0'):
             # Price is trending
             if Decimal(indicators['5']['obv']) > Decimal(indicators['5']['obv_ema']):
                 # buy btc
