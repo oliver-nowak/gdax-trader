@@ -197,8 +197,7 @@ class TradeEngine():
         else:
             # Price is ranging
             if Decimal(indicators['5']['last_price']) <= Decimal(indicators['5']['bband_lower']) + Decimal('5.0') \
-               and Decimal(indicators['5']['bband_upper']) - Decimal(indicators['5']['bband_lower']) > Decimal('10.0') \
-               or Decimal(indicators['5']['last_price']) > Decimal(indicators['5']['bband_upper']):
+               and Decimal(indicators['5']['bband_upper']) - Decimal(indicators['5']['bband_lower']) > Decimal('10.0'):
                 # At bottom - buy
                 self.sell_flag = False
                 self.buy_flag = True
@@ -207,7 +206,6 @@ class TradeEngine():
                 # At top - sell
                 self.buy_flag = False
                 self.sell_flag = True
-
         if self.buy_flag:
             if self.order_thread.is_alive():
                 if self.order_thread.name == 'sell_thread':
