@@ -7,7 +7,7 @@
 import talib
 import logging
 import numpy as np
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class IndicatorSubsystem:
@@ -77,10 +77,17 @@ class IndicatorSubsystem:
         self.current_indicators[period_name]['avg_volume'] = avg_vol[-1]
 
     def calculate_obv(self, period_name, closing_prices, volumes, bid_or_ask):
+        # Time period formula based on y = 1944.138x^-1.288 which was derived
+        # from a scatter plot chart in Excel with out desired curve
+        bband_width = Decimal(self.current_indicators[period_name]['bband_upper']) - Decimal(self.current_indicators[period_name]['bband_lower'])
+        time_period = Decimal('1944.138') * (bband_width ** Decimal('-1.288'))
+        time_period = int(time_period.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
         # cryptowat.ch does not include the first value in their OBV
         # calculation, we we won't either to provide parity
         obv = talib.OBV(closing_prices[1:], volumes[1:])
-        obv_ema = talib.EMA(obv, timeperiod=21)
+        obv_ema = talib.EMA(obv, timeperiod=time_period)
 
+        self.current_indicators[period_name][bid_or_ask]['obv_period'] = time_period
         self.current_indicators[period_name][bid_or_ask]['obv_ema'] = obv_ema[-1]
         self.current_indicators[period_name][bid_or_ask]['obv'] = obv[-1]
