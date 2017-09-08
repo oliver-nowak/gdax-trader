@@ -3,11 +3,14 @@ import curses
 from requests import ConnectionError, ConnectTimeout
 
 class cursesDisplay:
-    def __init__(self, enable=True):
+    def __init__(self, enable=True, product_prefix="ETH", simulate_trades=True):
         self.enable = enable
         if not self.enable:
             return
+        self.product_prefix = product_prefix
+        self.simulate_trades = simulate_trades
         self.stdscr = curses.initscr()
+        self.screen_h, self.screen_w = self.stdscr.getmaxyx()
         curses.start_color()
         curses.noecho()
         curses.cbreak()
@@ -19,7 +22,7 @@ class cursesDisplay:
     def update_balances(self, btc, usd):
         if not self.enable:
             return
-        self.stdscr.addstr(0, 0, "USD: %.2f ETH: %.8f" % (usd, btc))
+        self.stdscr.addstr(0, 0, "USD: %.2f %s: %.8f" % (usd, self.product_prefix, btc))
         self.stdscr.refresh()
 
     def update_candlesticks(self, period):
@@ -51,6 +54,12 @@ class cursesDisplay:
             return
         self.stdscr.addstr(1, 0, "1 - MACD_DIFF: %f MACD_HIST: %f MFI: %f" %
                            (indicators['1']['macd_hist_diff'], indicators['1']['macd_hist'], indicators['1']['mfi']))
+
+        if self.simulate_trades:
+            msg = "---- SIMULATING TRADES ON LIVE FEED ----"
+        else:
+            msg = "---- LIVE FEED ----"
+        self.stdscr.addstr(self.screen_h-1, 0, msg)
         self.stdscr.refresh()
 
     def update_orders(self, trade_engine):
@@ -105,4 +114,8 @@ class cursesDisplay:
         curses.endwin()
 
     def refresh(self):
+        # clear the screen; it could be filled with traceback garbage
+        self.stdscr.clear()
+
+        # force the refresh
         self.stdscr.refresh()

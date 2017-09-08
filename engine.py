@@ -48,10 +48,12 @@ class OrderBookCustom(gdax.OrderBook):
 
 
 class TradeEngine():
-    def __init__(self, auth_client, is_live=False):
+    def __init__(self, auth_client, is_live=False, product_prefix="ETH", simulate_trades=True):
         self.auth_client = auth_client
         self.is_live = is_live
-        self.order_book = OrderBookCustom(product_id=['ETH-USD'])
+        self.product_prefix = product_prefix
+        self.simulate_trades = simulate_trades
+        self.order_book = OrderBookCustom(product_id=["{}-USD".format(self.product_prefix)])
         self.usd = self.get_usd()
         self.btc = self.get_btc()
         self.last_balance_update = time.time()
@@ -60,8 +62,9 @@ class TradeEngine():
         self.last_balance_update = time.time()
         self.logger = logging.getLogger('trader-logger')
 
-
-        self.account_order_book = {'count': Decimal(0.0), 'cash': Decimal(1000.00)}
+        # since we are simulating trades, lets set up a fake account with fake cash and coinage
+        if self.simulate_trades:
+            self.account_order_book = {'count': Decimal(0.0), 'cash': Decimal(1000.00)}
 
         self.buy_flag = False
         self.sell_flag = False
@@ -71,7 +74,7 @@ class TradeEngine():
         self.buy_flag = False
         self.sell_flag = False
         # Cancel any orders that may still be remaining
-        self.auth_client.cancel_all(product_id='ETH-USD')
+        self.auth_client.cancel_all(product_id="{}-USD".format(self.product_prefix))
         self.order_book.close()
 
     def start(self):
@@ -79,21 +82,24 @@ class TradeEngine():
 
     def get_usd(self):
         try:
-            # for account in self.auth_client.get_accounts():
-            #     if account.get('currency') == 'USD':
-            return self.round_usd(self.account_order_book.get('cash'))
-                    # return self.round_usd(account.get('available'))
+            if self.simulate_trades:
+                return self.round_usd(self.account_order_book.get('cash'))
+            else:
+                for account in self.auth_client.get_accounts():
+                    if account.get('currency') == 'USD':
+                        return self.round_usd(account.get('available'))
         except AttributeError:
             return self.round_usd('0.0')
 
     def get_btc(self):
         try:
-            # for account in self.auth_client.get_accounts():
-            #     if account.get('currency') == 'ETH':
-            #         return self.round_btc(self.account_order_book.get('count'))
-                    # return self.round_btc(account.get('available'))
-            return self.round_btc(self.account_order_book.get('count'))
-            # return self.round_btc(self.auth_client.get_accounts()[0]['available'])
+            if self.simulate_trades:
+                return self.round_btc(self.account_order_book.get('count'))
+            else:
+                for account in self.auth_client.get_accounts():
+                    if account.get('currency') == "{}".format(self.product_prefix):
+                        return self.round_btc(account.get('available'))
+                return self.round_btc(self.auth_client.get_accounts()[0]['available'])
         except AttributeError:
             return self.round_btc('0.0')
 
@@ -110,7 +116,7 @@ class TradeEngine():
             self.last_balance_update = time.time()
 
     def print_amounts(self):
-        self.logger.debug("[BALANCES] USD: %.2f ETH: %.8f" % (self.usd, self.btc))
+        self.logger.debug("[BALANCES] USD: %.2f %s: %.8f" % (self.usd, self.product_prefix, self.btc))
 
     def place_buy(self, partial='1.0'):
         amount = self.get_usd() * Decimal(partial)
@@ -123,22 +129,24 @@ class TradeEngine():
             amount = self.round_btc(Decimal(amount) / Decimal(bid))
 
         if amount >= Decimal('0.01'):
-            # total = amount * bid
-            self.logger.debug("BUYING [{}] ETH for [{}]!".format(amount, bid))
+            self.logger.debug("BUYING [{}] {} for [{}]!".format(amount, self.product_prefix, bid))
 
-            self.account_order_book['count'] += amount
-            self.account_order_book['cash'] -= (bid * amount)
+            if self.simulate_trades:
+                self.account_order_book['count'] += amount
+                self.account_order_book['cash'] -= (bid * amount)
 
-            ret = {'status': 'done', 'price': bid, 'id': 0}
-            return ret
-            # return self.auth_client.buy(type='limit', size=str(amount),
-            #                             price=str(bid), post_only=True,
-            #                             product_id='ETH-USD')
+                ret = {'status': 'done', 'price': bid, 'id': 0}
+                return ret
+            else:
+                return self.auth_client.buy(type='limit', size=str(amount),
+                                            price=str(bid), post_only=True,
+                                            product_id="{}-USD".format(self.product_prefix))
         else:
             ret = {'status': 'done'}
             return ret
 
     def buy(self, amount=None):
+        self.logger.debug("Placing BUY Order...")
         ret = self.place_buy('0.5')
         bid = ret.get('price')
         while ret.get('status') != 'done' and self.buy_flag:
@@ -158,7 +166,7 @@ class TradeEngine():
                 ret = self.auth_client.get_order(ret.get('id'))
             self.usd = self.get_usd()
         if not self.buy_flag and ret.get('id'):
-            self.auth_client.cancel_all(product_id='ETH-USD')
+            self.auth_client.cancel_all(product_id="{}-USD".format(self.product_prefix))
         self.usd = self.get_usd()
 
     def place_sell(self, partial='1.0'):
@@ -168,20 +176,24 @@ class TradeEngine():
         ask = self.order_book.get_bid() + Decimal('0.01')
 
         if amount >= Decimal('0.01'):
-            self.logger.debug("SELLING [{}] ETH for [{}]!".format(amount, ask))
-            self.account_order_book['count'] -= amount
-            self.account_order_book['cash'] += (ask * amount)
+            self.logger.debug("SELLING [{}] {} for [{}]!".format(amount, self.product_prefix, ask))
 
-            ret = {'status': 'done', 'price': ask, 'id': 0}
-            # return self.auth_client.sell(type='limit', size=str(amount),
-            #                              price=str(ask), post_only=True,
-            #                              product_id='ETC-USD')
-            return ret
+            if self.simulate_trades:
+                self.account_order_book['count'] -= amount
+                self.account_order_book['cash'] += (ask * amount)
+
+                ret = {'status': 'done', 'price': ask, 'id': 0}
+                return ret
+            else:
+                return self.auth_client.sell(type='limit', size=str(amount),
+                                             price=str(ask), post_only=True,
+                                             product_id='{}-USD'.format(self.product_prefix))
         else:
             ret = {'status': 'done'}
             return ret
 
     def sell(self, amount=None):
+        self.logger.debug("Placing SELL Order...")
         ret = self.place_sell('0.5')
         ask = ret.get('price')
         while ret.get('status') != 'done' and self.sell_flag:
@@ -201,7 +213,7 @@ class TradeEngine():
                 ret = self.auth_client.get_order(ret.get('id'))
             self.btc = self.get_btc()
         if not self.sell_flag:
-            self.auth_client.cancel_all(product_id='ETH-USD')
+            self.auth_client.cancel_all(product_id='{}-USD'.format(self.product_prefix))
         self.btc = self.get_btc()
 
     def determine_trades(self, indicators):

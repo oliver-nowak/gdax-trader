@@ -3,3 +3,5 @@ SECRET = ""
 PASSPHRASE = ""
 LIVE = False
 FRONTEND = "curses"
+PRODUCT_PREFIX = "" # one of [ETH, LTC, BTC]
+SIMULATE_TRADES = True

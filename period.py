@@ -64,12 +64,13 @@ class Candlestick:
 
 
 class Period:
-    def __init__(self, period_size=60, name='Period', initialize=True):
+    def __init__(self, period_size=60, name='Period', initialize=True, product_prefix='ETH'):
         self.period_size = period_size
         self.name = name
         self.first_trade = True
         self.verbose_heartbeat = False
         self.logger = logging.getLogger('trader-logger')
+        self.product_prefix = product_prefix
         if initialize:
             self.initialize()
         else:
@@ -84,7 +85,7 @@ class Period:
     def get_historical_data(self):
         gdax_client = gdax.PublicClient()
         try:
-            hist_data = np.array(gdax_client.get_product_historic_rates('ETH-USD', granularity=self.period_size),
+            hist_data = np.array(gdax_client.get_product_historic_rates('{}-USD'.format(self.product_prefix), granularity=self.period_size),
                                  dtype='object')
         except requests.ConnectionError as e:
             self.logger.debug(" Connection Error in get_historical_data: [{}]".format(e))

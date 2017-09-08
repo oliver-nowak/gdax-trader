@@ -18,12 +18,13 @@ from websocket import WebSocketConnectionClosedException
 
 
 class TradeAndHeartbeatWebsocket(gdax.WebsocketClient):
-    def __init__(self):
+    def __init__(self, product_prefix="ETH"):
+        self.product_prefix = product_prefix
         self.logger = logging.getLogger('trader-logger')
         super(TradeAndHeartbeatWebsocket, self).__init__()
 
     def on_open(self):
-        self.products = ["ETH-USD"]
+        self.products = ["{}-USD".format(self.product_prefix)]
         self.type = "heartbeat"
         self.websocket_queue = Queue.Queue()
         self.stop = False
@@ -33,6 +34,7 @@ class TradeAndHeartbeatWebsocket(gdax.WebsocketClient):
         self.logger.debug("-- GDAX Websocket Closed ---")
 
     def on_error(self, e):
+        self.logger.exception(e)
         raise e
 
     def close(self):
@@ -59,10 +61,13 @@ logger.addHandler(fh)
 if config.FRONTEND == 'debug':
     logger.addHandler(logging.StreamHandler())
 
-gdax_websocket = TradeAndHeartbeatWebsocket()
+gdax_websocket = TradeAndHeartbeatWebsocket(config.PRODUCT_PREFIX)
 auth_client = gdax.AuthenticatedClient(config.KEY, config.SECRET, config.PASSPHRASE)
-trade_engine = engine.TradeEngine(auth_client, is_live=config.LIVE)
-one_min = period.Period(period_size=(60 * 1), name='1')
+trade_engine = engine.TradeEngine(auth_client,
+                                  is_live=config.LIVE,
+                                  product_prefix=config.PRODUCT_PREFIX,
+                                  simulate_trades=config.SIMULATE_TRADES)
+one_min = period.Period(period_size=(60 * 1), name='1', product_prefix=config.PRODUCT_PREFIX)
 period_list = [one_min]
 gdax_websocket.start()
 period_list[0].verbose_heartbeat = True
@@ -73,7 +78,9 @@ if config.FRONTEND == 'curses':
     curses_enable = True
 else:
     curses_enable = False
-interface = curses_interface.cursesDisplay(enable=curses_enable)
+interface = curses_interface.cursesDisplay(enable=curses_enable,
+                                           product_prefix=config.PRODUCT_PREFIX,
+                                           simulate_trades=config.SIMULATE_TRADES)
 
 while(True):
     try:
