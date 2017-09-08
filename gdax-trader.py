@@ -23,7 +23,7 @@ class TradeAndHeartbeatWebsocket(gdax.WebsocketClient):
         super(TradeAndHeartbeatWebsocket, self).__init__()
 
     def on_open(self):
-        self.products = ["BTC-USD"]
+        self.products = ["ETH-USD"]
         self.type = "heartbeat"
         self.websocket_queue = Queue.Queue()
         self.stop = False
@@ -50,10 +50,12 @@ class TradeAndHeartbeatWebsocket(gdax.WebsocketClient):
         if msg.get('type') == "heartbeat" or msg.get('type') == "match":
             self.websocket_queue.put(msg)
 
-
 logger = logging.getLogger('trader-logger')
 logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.FileHandler("debug.log"))
+fh = logging.FileHandler("debug.log")
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 if config.FRONTEND == 'debug':
     logger.addHandler(logging.StreamHandler())
 
@@ -102,8 +104,10 @@ while(True):
         break
     except Exception as e:
         logger.debug(traceback.format_exc())
+        logger.debug("Restarting ... ")
         trade_engine.close()
         gdax_websocket.close()
+        interface.refresh()
         # Period data cannot be trusted. Re-initialize
         for cur_period in period_list:
             cur_period.initialize()

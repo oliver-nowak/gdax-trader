@@ -1,5 +1,6 @@
 import curses
 
+from requests import ConnectionError, ConnectTimeout
 
 class cursesDisplay:
     def __init__(self, enable=True):
@@ -18,7 +19,7 @@ class cursesDisplay:
     def update_balances(self, btc, usd):
         if not self.enable:
             return
-        self.stdscr.addstr(0, 0, "USD: %.2f BTC: %.8f" % (usd, btc))
+        self.stdscr.addstr(0, 0, "USD: %.2f ETH: %.8f" % (usd, btc))
         self.stdscr.refresh()
 
     def update_candlesticks(self, period):
@@ -58,27 +59,34 @@ class cursesDisplay:
 
         self.stdscr.addstr(11, 0, "Recent Fills")
         starty = 12
-        for fill in trade_engine.auth_client.get_fills(limit=5)[0]:
-            self.stdscr.addstr(starty, 0, "%s Price: %s Size: %s Time: %s" %
-                               (fill.get('side').upper(), fill.get('price'),
-                                fill.get('size'), fill.get('created_at')))
-            starty += 1
 
-        self.stdscr.addstr(18, 0, "Open Orders")
-
-        # Clear the next 5 rows
-        for idx in xrange(19, 24):
-            self.stdscr.addstr(idx, 0, " " * 70)
-
-        starty = 19
-        if trade_engine.order_thread.is_alive():
-            for order in trade_engine.auth_client.get_orders()[0]:
-                self.stdscr.addstr(starty, 0, "%s Price: %s Size: %s Status: %s" %
-                                   (order.get('side').upper(), order.get('price'),
-                                    order.get('size'), order.get('status')))
+        try:
+            for fill in trade_engine.auth_client.get_fills(limit=5)[0]:
+                self.stdscr.addstr(starty, 0, "%s Price: %s Size: %s Time: %s" %
+                                   (fill.get('side').upper(), fill.get('price'),
+                                    fill.get('size'), fill.get('created_at')))
                 starty += 1
-        else:
-            self.stdscr.addstr(19, 0, "None")
+
+            self.stdscr.addstr(18, 0, "Open Orders")
+
+            # Clear the next 5 rows
+            for idx in xrange(19, 24):
+                self.stdscr.addstr(idx, 0, " " * 70)
+
+            starty = 19
+            if trade_engine.order_thread.is_alive():
+                for order in trade_engine.auth_client.get_orders()[0]:
+                    self.stdscr.addstr(starty, 0, "%s Price: %s Size: %s Status: %s" %
+                                       (order.get('side').upper(), order.get('price'),
+                                        order.get('size'), order.get('status')))
+                    starty += 1
+            else:
+                self.stdscr.addstr(19, 0, "None")
+
+        except ConnectionError as e:
+            self.stdscr.addstr(1, 0, "Connection error... continuing...")
+            pass
+
         self.stdscr.refresh()
 
     def print_color(self, a, b):
@@ -95,3 +103,6 @@ class cursesDisplay:
         self.stdscr.keypad(0)
         curses.echo()
         curses.endwin()
+
+    def refresh(self):
+        self.stdscr.refresh()

@@ -83,7 +83,13 @@ class Period:
 
     def get_historical_data(self):
         gdax_client = gdax.PublicClient()
-        hist_data = np.array(gdax_client.get_product_historic_rates('BTC-USD', granularity=self.period_size), dtype='object')
+        try:
+            hist_data = np.array(gdax_client.get_product_historic_rates('ETH-USD', granularity=self.period_size),
+                                 dtype='object')
+        except requests.ConnectionError as e:
+            self.logger.debug(" Connection Error in get_historical_data: [{}]".format(e))
+            hist_data = np.array([])
+
         for row in hist_data:
             row[0] = datetime.datetime.fromtimestamp(row[0], pytz.utc)
         return np.flipud(hist_data)
